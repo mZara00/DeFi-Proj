@@ -1,4 +1,4 @@
-pragma solidity ^0.8.16;
+pragma solidity ^0.8.16; //dont forget to compile with the version we use here.
 
 contract OurToken {
     string public name; //first we make sure that both the name and symbol are public, otherwise no one will be able to see the token.;
