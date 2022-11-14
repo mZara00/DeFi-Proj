@@ -4,7 +4,7 @@
 pragma solidity ^0.8;
 
 import "./Token.sol";
-import "./ERC20Interface.sol"; // not sure if we need that or not!
+// import "./ERC20Interface.sol"; // not sure if we need that or not!
 
 
 contract StakingRewards {
@@ -34,8 +34,7 @@ contract StakingRewards {
     mapping(address => uint) public userRewardPerTokenPaid; // from users address to RewardperTokenStored per user is now called userRewardPerTokenPaid
     // 8. state variable: keep track of Rewards a user earns (rewards to be claimed)
     mapping(address => uint) public rewards; // from users address to the amount a user earns. This is called rewards
-
-
+    
     // define state variables that keep track of the "total supply of the staking token" and of the "amount stake per user"
     // 9. state variable: total staked
     uint public totalSupply;
@@ -51,8 +50,8 @@ contract StakingRewards {
         rewardsToken = OurTokenERC20(_rewardToken); // rewardToken refers to our token (OurTokenERC20) and the address of the rewardToken
     }
 
-    // modifier that only owner can set reward for the duration
-    modifier onlyOwner() {
+    
+    modifier onlyOwner() { // modifier that only owner can set reward for the duration
         require(msg.sender == owner, "not the owner of this contract"); // if owner is the sender of the message --> go ahead for the further execution of this code. If it's not the owner, print *not the owner of this contract" and decline further actions
         _;
     }
