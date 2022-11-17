@@ -1,0 +1,154 @@
+// https://solidity-by-example.org/defi/staking-rewards/
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8;
+
+import "./Token.sol";
+import "./Payable.sol";
+//import "./ERC20Interface.sol"; // not sure if we need that or not!
+
+
+contract StakingRewards {
+    // Immutable variable are thread-safe. We do not need to change it afterwards. Public means that the variable can be accessed by the contract and by other smart contracts.
+    OurTokenERC20 public immutable stakingToken; // we make 2 tokens. The First one is called StakingToken
+    OurTokenERC20 public immutable rewardsToken; // the Second one is the Reward Token
+    // users are going to stake the stakingToken and in return they get the rewardsToken
+
+    uint public lockedTime = 120; // 2 Min
+    /* 1. state variable: state variable called owner: Only owner can set duration of the stakingRewards and amount for the duration. 
+    This will be set during deployment when constructor is called*/
+    address public owner; 
+
+
+    // now we implement some state-variables to keep track of the Rewards: 
+    // 2. state variable: Duration of rewards to be paid out (in seconds)
+    uint public duration;
+    // 3. state variable: store the time to the rewards have finish
+    uint public finishAt;
+    // 4. state variable: keep track of the last time this contract was updated
+    uint public updatedAt;
+    // 5. state variable: Reward the user earns per second
+    uint public rewardRate;
+    // 6. state variable: Sum of (reward rate * duration * 1e18 / total supply). It shows the total RewardToken stored in the Token. 
+    uint public rewardPerTokenStored;
+    // 7. state variable: keep track of the Reward per Token is stored PER USER
+    mapping(address => uint) public userRewardPerTokenPaid; // from users address to RewardperTokenStored per user is now called userRewardPerTokenPaid
+    // 8. state variable: keep track of Rewards a user earns (rewards to be claimed)
+    mapping(address => uint) public rewards; // from users address to the amount a user earns. This is called rewards
+    
+    // define state variables that keep track of the "total supply of the staking token" and of the "amount stake per user"
+    // 9. state variable: total staked
+    uint public totalSupply;
+    // 10. state variable: amount staked per user
+    mapping(address => uint) public balanceOf; //from users address the amount they stake
+
+
+    /* Now we implement the constructor. A Constructor is defined using a constructor keyword without any function name followed by an access modifier. 
+    It's a function which initializes state variables of the contract */
+    constructor(address _stakingToken, address _rewardToken) { //we pass the adress the stakingToken (row12) and the RewardToken (row13) to the constructor. Underscore means that these objects are used internally.
+        owner = msg.sender; // we set owner state variable (row19) to the address that deploy this contract
+        stakingToken = OurTokenERC20(_stakingToken); // stakingToken refers to our token (OurTokenERC20) and the address of the stakingToken
+        rewardsToken = OurTokenERC20(_rewardToken); // rewardToken refers to our token (OurTokenERC20) and the address of the rewardToken
+    }
+
+    
+    modifier onlyOwner() { // modifier that only owner can set reward for the duration
+        require(msg.sender == owner, "not the owner of this contract"); // if owner is the sender of the message --> go ahead for the further execution of this code. If it's not the owner, print *not the owner of this contract" and decline further actions
+        _;
+    }
+
+    modifier updateReward(address _account) { // we create this modifier to keep track of the rewardPerToken and userRewardPerTokenPaid
+        rewardPerTokenStored = rewardPerToken(); // update rewardPerTokenStored to the current value. (important to be public to call the rewardPerToken function).
+        updatedAt = lastTimeRewardApplicable(); // update updatedAt. If reward duration has expired, this function will return that time, when the reward has expired. 
+
+        if (_account != address(0)) { //address(0) first transfers all the tokens to msg. sender , which is me, the person who deploys this contract.
+            rewards[_account] = earned(_account); //update rewards earned by this account. We call earned to calculate the rewards earned by this account
+            userRewardPerTokenPaid[_account] = rewardPerTokenStored; // update userRewardPerTokenPaid to the current rewardPerTokenStored that are in this contract
+        }
+
+        _;
+    }
+
+
+// We define some function that the user will be able to call on this contract:
+
+//owner of the contract will be able to set the reward for the duration 
+    function setRewardsDuration(uint _duration) external onlyOwner {  // single input is _duration nad we only want the owner to set reward for duration by writing onlyOwner
+        require(finishAt < block.timestamp, "reward duration has not finished"); /*we do not want the owner to change the duration while contract is earning rewards. 
+        We also want that the time when it ends will be saved in state variable finishAt. So the current time stamp needs to be bigger than finishAt, meaning that the last 
+        reward has expired. If current time stam is smaller than finishAt, the reward duration has not finished*/
+        duration = _duration; // duration is equal to the _duration's input
+    }
+
+    function lastTimeRewardApplicable() public view returns (uint) { // returns the time stamp when the last time the reward is still applicable
+        return _min(block.timestamp, finishAt); // return the minimum of the two variables (current time stamp vs. ending time stamp). return the smaller one
+    }
+    // for the function lastTimeRewardApplicable() we need a new function min to execute the function before
+    function _min(uint x, uint y) private pure returns (uint) { // takes 2 inputs (x and y). It should return the minimum of x and y. private because its just an internal function
+        return x <= y ? x : y;
+    }
+
+    function rewardPerToken() public view returns (uint) { //this function returns the reward per Token
+        if (totalSupply == 0) { // if totalSupply is 0, ...
+            return rewardPerTokenStored; // ...we just return the current reward per Token
+        }
+        else // if total supply is not 0...
+        return rewardPerTokenStored + (rewardRate * (lastTimeRewardApplicable() - updatedAt) * 1e17) / totalSupply;
+    }
+
+    // user can start staking to earn reward. They can call this function to stake tokens.
+    function stake(uint _amount) external updateReward(msg.sender) { //function stake takes single input _amount of token to stake // update the reward when user stakes
+        require(_amount > 0, "amount = 0"); //important that the amount that was sent is greater than 0, else print "amount = 0"
+        stakingToken.transferFrom(msg.sender, address(this), _amount); // we transfer the staking tokens from message of sender with the chosen amount to this contract address
+        balanceOf[msg.sender] += _amount; //now we update the balance with the amount that was staked. This 
+        totalSupply += _amount; //and we update the total Supply with the amount that is staked (in sum). (totalSupply keeps track on total amount of tokens staked in this contract)
+    }
+    function changeLockedTime(uint _newLockedTime) public onlyOwner{
+        lockedTime = _newLockedTime;
+    }    
+    //users will be able to withdraw the token that they stake
+    function withdraw(uint _amount) external updateReward(msg.sender) { //user can withdraw the _amount they stake // update the reward when user stakes
+        require(block.timestamp > lockedTime, "error");
+        require(_amount > 0, "amount = 0"); // amount must be grater than 0
+        balanceOf[msg.sender] -= _amount; // updated with input amount
+        totalSupply -= _amount; // updated with input amount
+        stakingToken.transfer(msg.sender, _amount); //transfer the staking token back to the caller. transfer to message sender the amount
+    }
+
+    // Once users stake tokens, they should get some reward for staking those tokens. This function is the earned reward by a user
+    function earned(address _account) public view returns (uint) { // function earned takes address of the account of our staker. It returns the amount of rewards that are earned by the account
+        return((balanceOf[_account] * (rewardPerToken() - userRewardPerTokenPaid[_account])) / 1e18) + rewards[_account]; /* balanceOf[_account] = store amount of token that are staked
+        rewards[_account] = previous amount of rewards earned by a user that will be stored in the mapping  */
+    }
+
+    // user will be able to claim the reward
+    function getReward() external updateReward(msg.sender) { // user call this function to get reardtoken // update the reward for message sender
+        uint reward = rewards[msg.sender];
+        if (reward > 0) { // if the reward is bigger 0
+            rewards[msg.sender] = 0; // before sending the rewardToken, we set the reward of the message sender to 0
+            rewardsToken.transfer(msg.sender, reward); // we transfer the reardsToken to the message sender.
+        }
+    }
+    // Owner will be able to specify the reward rate
+    function notifyRewardAmount(uint _amount) external onlyOwner // input is amount of rewards to be paid for the duration. Owner is able to call this function to send Rewardtokens into his contract and set the reward rate
+        updateReward(address(0)) // update reward for address 0
+        // we have two cases to set the rewardrate. Calculation depends whether the current reward duration is expired or not
+    {
+        if (block.timestamp >= finishAt) { // this means that reward duration is expired or has not even started
+            rewardRate = _amount / duration; //rwardRate is equal to amount of rewards to be paid divided by the duration 
+        } else { // reward duration has not finished yet. Therefore, there are som ongoing rewards and the staker is still earning rewards
+            uint remainingRewards = (finishAt - block.timestamp) * rewardRate; /* we calculate the rewards that are remaining for an ongoing time till it has finished. 
+            finishAt is the time stamp when the reward will be finished. block.timestam is the actual timestamp at the moment */
+            rewardRate = (remainingRewards + _amount) / duration;
+        }
+
+        require(rewardRate > 0, "reward rate = 0"); // we will be sure that the reward rate is higher than 0. If not, print reward rate=0. 
+        require(rewardRate * duration <= rewardsToken.balanceOf(address(this)), "remaining balance is to low"); /* we need to be sure that there is enough reward 
+        to be paid out by checking the balance of the rewardToken that is locked inside this contract. If not, print error meassage "remaining balance is to low"*/
+
+        finishAt = block.timestamp + duration; //set time stamp at when the reward finishes. It should be finished when current time step + duration it takes is done
+        updatedAt = block.timestamp; // We also need to update the state variable updatedAt
+    }
+    
+    
+
+}
