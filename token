@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0 <0.9.0;
+
+contract OurTokenERC20 {
+
+
+    // Mandatory ERC-20 functions, 
+
+    function totalSupply() public view returns (uint256) {
+        return totalSupply_;
+    }
+    function balanceOf(address tokenOwner) public view returns (uint) {
+        return blnc[tokenOwner];
+    }
+    function transfer(address receiver, uint Token_amount) public returns (bool) {
+        require(Token_amount <= blnc[msg.sender]);
+        blnc[msg.sender] -= Token_amount;
+        blnc[receiver] += Token_amount;
+        emit Transfer(msg.sender, receiver, Token_amount);
+        return true;
+    }
+    function approve(address spender, uint Token_amount) public returns (bool) {
+        allowed[msg.sender][spender] = Token_amount;
+        emit Approval(msg.sender, spender, Token_amount);
+        return true;
+    }
+    function allowance(address owner, address spender) public view returns (uint) {
+        return allowed[owner][spender];
+    }
+    function transferFrom(address owner, address buyer, uint Token_amount) public returns (bool) {
+        require(Token_amount <= blnc[owner]);
+        require(Token_amount <= allowed[owner][msg.sender]);
+
+        blnc[owner] -= Token_amount;
+        allowed[owner][msg.sender] -= Token_amount;
+        blnc[buyer] += Token_amount;
+        emit Transfer(owner, buyer, Token_amount);
+        return true;
+    }
+
+    event Transfer(address indexed from, address indexed to, uint tokens);
+    event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
+
+
+    // Specifying our Token 
+    string public constant name = " Dodge Coin";
+    string public constant symbol = "DC";
+    uint8 public constant decimals = 18;
+
+
+    // Mapping so that the Token can be spent by users 
+    mapping(address => uint256) blnc;
+    mapping(address => mapping (address => uint256)) allowed;
+
+
+    uint256 totalSupply_ = 100 * (uint256(10) ** decimals);
+    constructor() {
+    blnc[msg.sender] = totalSupply_;
+    }
+
+}
