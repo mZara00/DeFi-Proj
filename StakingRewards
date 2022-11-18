@@ -13,7 +13,7 @@ contract StakingRewards {
     OurTokenERC20 public immutable rewardsToken; // the Second one is the Reward Token
     // users are going to stake the stakingToken and in return they get the rewardsToken
 
-    uint public lockedTime = 120; // 2 Min
+    uint public lockedTime = 20; // 5 - 20 seconds
     /* 1. state variable: state variable called owner: Only owner can set duration of the stakingRewards and amount for the duration. 
     This will be set during deployment when constructor is called*/
     address public owner; 
@@ -107,7 +107,7 @@ contract StakingRewards {
     }    
     //users will be able to withdraw the token that they stake
     function withdraw(uint _amount) external updateReward(msg.sender) { //user can withdraw the _amount they stake // update the reward when user stakes
-        require(block.timestamp > lockedTime, "error");
+        require((finishAt - block.timestamp) > lockedTime, "error, minimum staking time is not reached yet");
         require(_amount > 0, "amount = 0"); // amount must be grater than 0
         balanceOf[msg.sender] -= _amount; // updated with input amount
         totalSupply -= _amount; // updated with input amount
