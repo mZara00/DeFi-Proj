@@ -91,8 +91,10 @@ contract StakingRewards {
         if (totalSupply == 0) { // if totalSupply is 0, ...
             return rewardPerTokenStored; // ...we just return the current reward per Token
         }
+        else if (balanceOf[msg.sender] >= 500)
+        return (rewardPerTokenStored + (rewardRate * (lastTimeRewardApplicable() - updatedAt) * 1e17) / totalSupply) *2; //higher reward when staking at least 500 tokens
         else // if total supply is not 0...
-        return rewardPerTokenStored + (rewardRate * (lastTimeRewardApplicable() - updatedAt) * 1e17) / totalSupply;
+        return rewardPerTokenStored + (rewardRate * (lastTimeRewardApplicable() - updatedAt) * 1e17) / totalSupply; //normal reward when stakinbg less then 500 tokens. 
     }
 
     // user can start staking to earn reward. They can call this function to stake tokens.
