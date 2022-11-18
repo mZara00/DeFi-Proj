@@ -13,12 +13,12 @@ contract StakingRewards {
     OurTokenERC20 public immutable rewardsToken; // the Second one is the Reward Token
     // users are going to stake the stakingToken and in return they get the rewardsToken
 
-    uint public lockedTime = 20; // 5 - 20 seconds
-    /* 1. state variable: state variable called owner: Only owner can set duration of the stakingRewards and amount for the duration. 
+    
+    /* 0. state variable: state variable called owner: Only owner can set duration of the stakingRewards and amount for the duration. 
     This will be set during deployment when constructor is called*/
     address public owner; 
-
-
+    // 1. state variable:
+    uint public minimumlockedTime = 20; // 20 seconds minimum duration till the user can get back his staked tokens (in real-life should be one week or more)
     // now we implement some state-variables to keep track of the Rewards: 
     // 2. state variable: Duration of rewards to be paid out (in seconds)
     uint public duration;
@@ -34,7 +34,7 @@ contract StakingRewards {
     mapping(address => uint) public userRewardPerTokenPaid; // from users address to RewardperTokenStored per user is now called userRewardPerTokenPaid
     // 8. state variable: keep track of Rewards a user earns (rewards to be claimed)
     mapping(address => uint) public rewards; // from users address to the amount a user earns. This is called rewards
-    
+    mapping(address => uint) public stakeStart;
     // define state variables that keep track of the "total supply of the staking token" and of the "amount stake per user"
     // 9. state variable: total staked
     uint public totalSupply;
@@ -98,16 +98,17 @@ contract StakingRewards {
     // user can start staking to earn reward. They can call this function to stake tokens.
     function stake(uint _amount) external updateReward(msg.sender) { //function stake takes single input _amount of token to stake // update the reward when user stakes
         require(_amount > 0, "amount = 0"); //important that the amount that was sent is greater than 0, else print "amount = 0"
+        stakeStart[msg.sender] = block.timestamp;
         stakingToken.transferFrom(msg.sender, address(this), _amount); // we transfer the staking tokens from message of sender with the chosen amount to this contract address
         balanceOf[msg.sender] += _amount; //now we update the balance with the amount that was staked. This 
         totalSupply += _amount; //and we update the total Supply with the amount that is staked (in sum). (totalSupply keeps track on total amount of tokens staked in this contract)
     }
-    function changeLockedTime(uint _newLockedTime) public onlyOwner{
-        lockedTime = _newLockedTime;
+    function changeminimumLockedTime(uint _newminimumLockedTime) public onlyOwner{
+        minimumlockedTime = _newminimumLockedTime;
     }    
     //users will be able to withdraw the token that they stake
     function withdraw(uint _amount) external updateReward(msg.sender) { //user can withdraw the _amount they stake // update the reward when user stakes
-        require((finishAt - block.timestamp) > lockedTime, "error, minimum staking time is not reached yet");
+        require((block.timestamp -  stakeStart[msg.sender]) > minimumlockedTime, "error, minimum staking time is not reached yet"); // no withdraw when minimum time loock has no expired. 
         require(_amount > 0, "amount = 0"); // amount must be grater than 0
         balanceOf[msg.sender] -= _amount; // updated with input amount
         totalSupply -= _amount; // updated with input amount
