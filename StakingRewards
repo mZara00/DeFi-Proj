@@ -105,6 +105,7 @@ contract StakingRewards {
         balanceOf[msg.sender] += _amount; //now we update the balance with the amount that was staked. This 
         totalSupply += _amount; //and we update the total Supply with the amount that is staked (in sum). (totalSupply keeps track on total amount of tokens staked in this contract)
     }
+    // inspired by (https://stackoverflow.com/questions/71808619/erc20-insufficient-allowance) :
     function changeminimumLockedTime(uint _newminimumLockedTime) public onlyOwner{
         minimumlockedTime = _newminimumLockedTime;
     }    
